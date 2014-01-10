@@ -1,7 +1,7 @@
 " モードをキーにする辞書で定義
 function! clever_f#reset()
     let s:previous_map = {}
-    let s:previous_char = {}
+    let s:previous_input = {}
     let s:previous_pos = {}
     let s:first_move = {}
     let s:migemo_dicts = {}
@@ -22,7 +22,7 @@ function! clever_f#find_with(map)
     if current_pos != get(s:previous_pos, mode, [0, 0])
         " TODO consider an argument of getchar(). 0 is needed?
         if g:clever_f_show_prompt | echon "clever-f: " | endif
-        let s:previous_char[mode] = getchar()
+        let s:previous_input[mode] = getchar()
         let s:previous_map[mode] = a:map
         let s:first_move[mode] = 1
         if g:clever_f_show_prompt | redraw! | endif
@@ -37,14 +37,14 @@ endfunction
 function! clever_f#repeat(back)
     let mode = mode(1)
     let pmap = get(s:previous_map, mode, "")
-    let pchar = get(s:previous_char, mode, 0)
+    let pinput = get(s:previous_input, mode, 0)
 
     if pmap ==# ''
         return ''
     endif
 
     " ignore special characters like \<Left>
-    if type(pchar) == type("") && char2nr(pchar) == 128
+    if type(pinput) == type("") && char2nr(pinput) == 128
         return ''
     endif
 
@@ -53,19 +53,19 @@ function! clever_f#repeat(back)
     endif
 
     if mode ==? 'v' || mode ==# "\<C-v>"
-        let cmd = s:move_cmd_for_visualmode(pmap, pchar)
+        let cmd = s:move_cmd_for_visualmode(pmap, pinput)
     else
         let inclusive = mode ==# 'no' && pmap =~# '\l'
         let cmd = printf("%s:\<C-u>call clever_f#find(%s, %s)\<CR>",
                     \    inclusive ? 'v' : '',
-                    \    string(pmap), pchar)
+                    \    string(pmap), pinput)
     endif
 
     return cmd
 endfunction
 
-function! clever_f#find(map, char)
-    let next_pos = s:next_pos(a:map, a:char, v:count1)
+function! clever_f#find(map, input)
+    let next_pos = s:next_pos(a:map, a:input, v:count1)
     if next_pos != [0, 0]
         let mode = mode(1)
         let s:previous_pos[mode] = next_pos
@@ -73,8 +73,8 @@ function! clever_f#find(map, char)
     endif
 endfunction
 
-function! s:move_cmd_for_visualmode(map, char)
-    let next_pos = s:next_pos(a:map, a:char, v:count1)
+function! s:move_cmd_for_visualmode(map, input)
+    let next_pos = s:next_pos(a:map, a:input, v:count1)
     if next_pos == [0, 0]
         return ''
     endif
@@ -94,8 +94,8 @@ function! s:search(pat, flag)
     endif
 endfunction
 
-function! s:should_use_migemo(char)
-    if ! g:clever_f_use_migemo || a:char !~# '^\a$'
+function! s:should_use_migemo(input)
+    if ! g:clever_f_use_migemo || a:input !~# '^\a$'
         return 0
     endif
 
@@ -120,17 +120,17 @@ function! s:load_migemo_dict()
     endif
 endfunction
 
-function! s:generate_pattern(map, char)
-    let char = type(a:char) == type(0) ? nr2char(a:char) : a:char
-    let regex = char
+function! s:generate_pattern(map, input)
+    let input = type(a:input) == type(0) ? nr2char(a:input) : a:input
+    let regex = input
 
-    let should_use_migemo = s:should_use_migemo(char)
+    let should_use_migemo = s:should_use_migemo(input)
     if should_use_migemo
         if ! has_key(s:migemo_dicts, &l:encoding)
             let s:migemo_dicts[&l:encoding] = s:load_migemo_dict()
         endif
         let regex = s:migemo_dicts[&l:encoding][regex]
-    elseif stridx(g:clever_f_chars_match_any_signs, char) != -1
+    elseif stridx(g:clever_f_chars_match_any_signs, input) != -1
         let regex = '\[!"#$%&''()=~|\-^\\@`[\]{};:+*<>,.?_/]'
     endif
 
@@ -144,15 +144,15 @@ function! s:generate_pattern(map, char)
         let regex = '\V'.regex
     endif
 
-    return ((g:clever_f_smart_case && char =~# '\l') || g:clever_f_ignore_case ? '\c' : '\C') . regex
+    return ((g:clever_f_smart_case && input =~# '\l') || g:clever_f_ignore_case ? '\c' : '\C') . regex
 endfunction
 
-function! s:next_pos(map, char, count)
+function! s:next_pos(map, input, count)
     let mode = mode(1)
     let search_flag = a:map =~# '\l' ? 'W' : 'bW'
     let cnt = a:count
     let s:first_move[mode] = 0
-    let pattern = s:generate_pattern(a:map, a:char)
+    let pattern = s:generate_pattern(a:map, a:input)
 
     if get(s:first_move, mode, 1)
         if a:map ==? 't'
@@ -173,8 +173,8 @@ function! s:next_pos(map, char, count)
     return getpos('.')[1 : 2]
 endfunction
 
-function! s:swapcase(char)
-    return a:char =~# '\u' ? tolower(a:char) : toupper(a:char)
+function! s:swapcase(input)
+    return a:input =~# '\u' ? tolower(a:input) : toupper(a:input)
 endfunction
 
 call clever_f#reset()
