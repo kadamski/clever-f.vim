@@ -24,5 +24,9 @@ let g:clever_f_fix_key_direction     = get(g:, 'clever_f_fix_key_direction', 0)
 let g:clever_f_show_prompt           = get(g:, 'clever_f_show_prompt', 0)
 let g:clever_f_smart_case            = get(g:, 'clever_f_smart_case', 0)
 let g:clever_f_chars_match_any_signs = get(g:, 'clever_f_chars_match_any_signs', '')
+let g:clever_f_default_key_strokes = get(g:, 'clever_f_default_key_strokes', 1)
+if g:clever_f_default_key_strokes < 1
+    let g:clever_f_default_key_strokes = 1
+endif
 
 let g:loaded_clever_f = 1

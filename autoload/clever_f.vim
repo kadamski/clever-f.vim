@@ -95,6 +95,10 @@ function! s:search(pat, flag)
 endfunction
 
 function! s:should_use_migemo(input)
+    if g:clever_f_default_key_strokes != 1
+        return 0
+    endif
+
     if ! g:clever_f_use_migemo || a:input !~# '^\a$'
         return 0
     endif
