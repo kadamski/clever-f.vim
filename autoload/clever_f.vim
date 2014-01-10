@@ -17,12 +17,12 @@ function! clever_f#find_with(map)
 
     let current_pos = getpos('.')[1 : 2]
     let back = 0
-
     let mode = mode(1)
+
     if current_pos != get(s:previous_pos, mode, [0, 0])
-        " TODO consider an argument of getchar(). 0 is needed?
+        " at first step
         if g:clever_f_show_prompt | echon "clever-f: " | endif
-        let s:previous_input[mode] = getchar()
+        let s:previous_input[mode] = s:get_input(1)
         let s:previous_map[mode] = a:map
         let s:first_move[mode] = 1
         if g:clever_f_show_prompt | redraw! | endif
@@ -37,14 +37,9 @@ endfunction
 function! clever_f#repeat(back)
     let mode = mode(1)
     let pmap = get(s:previous_map, mode, "")
-    let pinput = get(s:previous_input, mode, 0)
+    let pinput = get(s:previous_input, mode, '')
 
-    if pmap ==# ''
-        return ''
-    endif
-
-    " ignore special characters like \<Left>
-    if type(pinput) == type("") && char2nr(pinput) == 128
+    if pmap ==# '' || pinput ==# ''
         return ''
     endif
 
@@ -58,7 +53,7 @@ function! clever_f#repeat(back)
         let inclusive = mode ==# 'no' && pmap =~# '\l'
         let cmd = printf("%s:\<C-u>call clever_f#find(%s, %s)\<CR>",
                     \    inclusive ? 'v' : '',
-                    \    string(pmap), pinput)
+                    \    string(pmap), string(pinput))
     endif
 
     return cmd
@@ -84,6 +79,23 @@ function! s:move_cmd_for_visualmode(map, input)
     let s:previous_pos[mode] = next_pos
 
     return "``"
+endfunction
+
+function! s:get_input(num_strokes)
+    let input = ''
+
+    " repeat a:num_strokes times
+    for _ in range(a:num_strokes)
+        let c = getchar()
+        let char = type(c) == type(0) ? nr2char(c) : c
+        if char ==# "\<Esc>" || char2nr(char) == 128
+            " cancel if escape or special character is input
+            return ''
+        endif
+        let input .= char
+    endfor
+
+    return input
 endfunction
 
 function! s:search(pat, flag)
@@ -135,6 +147,7 @@ function! s:generate_pattern(map, input)
         endif
         let regex = s:migemo_dicts[&l:encoding][regex]
     elseif stridx(g:clever_f_chars_match_any_signs, input) != -1
+        " TODO: fix for multi characters
         let regex = '\[!"#$%&''()=~|\-^\\@`[\]{};:+*<>,.?_/]'
     endif
 
@@ -148,6 +161,7 @@ function! s:generate_pattern(map, input)
         let regex = '\V'.regex
     endif
 
+    " XXX: fix for multi characters
     return ((g:clever_f_smart_case && input =~# '\l') || g:clever_f_ignore_case ? '\c' : '\C') . regex
 endfunction
 
